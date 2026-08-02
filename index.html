@@ -3,136 +3,328 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Knowledge Shelf Widget</title>
+  <title>Knowledge Shelf Global Widget</title>
+
+  <!-- Tailwind CSS & Vis.js (Network) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
   <style>
-    /* カスタムスクロールバー (Evernote風) */
+    /* ラスタ風鮮やかグラデーション（見出し・アクセント用） */
+    .rasta-gradient-text {
+      background: linear-[#ff2a5f] bg-clip-text;
+      background: linear-gradient(135deg, #ff2a5f 0%, #ffbe0b 50%, #00f5d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .rasta-gradient-border {
+      border-image: linear-gradient(135deg, #ff2a5f, #ffbe0b, #00f5d4) 1;
+    }
+
+    /* カスタムスクロールバー */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
-<body class="h-full flex flex-col p-2 box-border select-none overflow-hidden">
+<body class="h-full flex flex-col p-3 box-border select-none overflow-hidden bg-slate-950 text-slate-100">
 
-  <!-- ヘッダー＆検索バー -->
-  <div class="flex gap-2 mb-2">
-    <div class="relative flex-1">
-      <input type="text" id="searchInput" placeholder="🔍 ナレッジを爆速検索..." 
-        class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500">
+  <!-- TOP HEADER -->
+  <header class="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-800/80">
+    <div class="flex items-center gap-2">
+      <h1 class="text-sm font-black tracking-wider rasta-gradient-text uppercase">Knowledge Shelf</h1>
+      <span id="dataStatus" class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Demo Mode</span>
     </div>
-    <button id="refreshBtn" title="手動更新" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 px-2.5 py-1.5 rounded-lg text-xs transition">
-      🔄
-    </button>
+
+    <!-- VIEW TOGGLE & REFRESH -->
+    <div class="flex items-center gap-1.5">
+      <div class="bg-slate-900 border border-slate-800 rounded-lg p-0.5 flex text-xs">
+        <button id="btnViewGraph" onclick="switchView('graph')" class="px-2 py-1 rounded-md transition font-medium bg-indigo-600 text-white">
+          🕸️ Graph
+        </button>
+        <button id="btnViewList" onclick="switchView('list')" class="px-2 py-1 rounded-md transition font-medium text-slate-400 hover:text-slate-200">
+          📑 List
+        </button>
+      </div>
+      <button onclick="fetchNotionData(true)" title="Notionから手動再読み込み" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-2 py-1 rounded-lg text-xs transition">
+        🔄
+      </button>
+    </div>
+  </header>
+
+  <!-- SEARCH BAR -->
+  <div class="mb-2">
+    <input type="text" id="searchInput" placeholder="🔍 ノートやキーワードを検索..." 
+      class="w-full bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500 transition">
   </div>
 
-  <!-- メインコンテンツ (Evernote風 2列レイアウト) -->
-  <div class="flex-1 grid grid-cols-3 gap-2 min-h-0">
-    
-    <!-- 左：INDEX（大分類） -->
-    <div class="col-span-1 bg-slate-900/60 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
-      <div class="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 flex justify-between items-center">
-        <span>Index</span>
-        <span id="indexCount" class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">0</span>
-      </div>
-      <div id="indexList" class="flex-1 overflow-y-auto space-y-0.5 mt-1">
-        <!-- JSで動的生成 -->
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 relative min-h-0 border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/40">
+
+    <!-- VIEW 1: VIS.JS NETWORK GRAPH -->
+    <div id="viewGraph" class="w-full h-full relative">
+      <div id="networkCanvas" class="w-full h-full bg-slate-950/60"></div>
+      
+      <!-- Graph Legend -->
+      <div class="absolute bottom-2 left-2 bg-slate-950/80 backdrop-blur-md border border-slate-800 rounded-lg p-2 text-[10px] flex gap-3 text-slate-300 pointer-events-none">
+        <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#e056fd]"></span> Index</div>
+        <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#00f5d4]"></span> Structure (MOC)</div>
+        <div class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-[#00b4d8]"></span> Permanent</div>
       </div>
     </div>
 
-    <!-- 右：NOTES（Structure / Permanent ノート） -->
-    <div class="col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
-      <div class="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 flex justify-between items-center">
-        <span id="currentFilterLabel">All Notes</span>
-        <span id="noteCount" class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">0</span>
+    <!-- VIEW 2: EVERNOTE-LIKE LIST (2-COLUMN) -->
+    <div id="viewList" class="w-full h-full hidden grid grid-cols-3 gap-2 p-2">
+      <!-- Left: Index Category -->
+      <div class="col-span-1 bg-slate-950/50 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
+        <div class="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 flex justify-between">
+          <span>Index</span>
+          <span id="indexCount" class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">0</span>
+        </div>
+        <div id="indexList" class="flex-1 overflow-y-auto space-y-0.5 mt-1"></div>
       </div>
-      <div id="noteList" class="flex-1 overflow-y-auto space-y-1 mt-1">
-        <!-- JSで動的生成 -->
+
+      <!-- Right: Notes List -->
+      <div class="col-span-2 bg-slate-950/50 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
+        <div class="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 flex justify-between">
+          <span id="currentFilterLabel">All Notes</span>
+          <span id="noteCount" class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">0</span>
+        </div>
+        <div id="noteList" class="flex-1 overflow-y-auto space-y-1 mt-1"></div>
       </div>
     </div>
 
-  </div>
+    <!-- SLIDE PANEL (NODE DETAILS) -->
+    <div id="slidePanel" class="absolute top-0 right-0 w-72 h-full bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 transform translate-x-full transition-transform duration-300 ease-in-out p-4 flex flex-col justify-between z-20 shadow-2xl">
+      <div>
+        <div class="flex justify-between items-start mb-3">
+          <span id="panelBadge" class="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Badge</span>
+          <button onclick="closeSlidePanel()" class="text-slate-400 hover:text-white text-base">✕</button>
+        </div>
+        <h2 id="panelTitle" class="text-sm font-bold text-slate-100 mb-3 leading-snug">Note Title</h2>
+        
+        <div class="space-y-2 text-xs text-slate-400 border-t border-slate-800/80 pt-3">
+          <div>
+            <span class="text-[10px] text-slate-500 block uppercase">Type</span>
+            <span id="panelType" class="text-slate-200 font-medium">-</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-500 block uppercase">Connected Index / Tags</span>
+            <div id="panelTags" class="flex flex-wrap gap-1 mt-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jump Button -->
+      <div class="pt-3 border-t border-slate-800">
+        <a id="panelAppBtn" href="#" target="_top" class="w-full block text-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-xs py-2 rounded-lg transition shadow-lg decoration-none">
+          🚀 Notionアプリで開く
+        </a>
+      </div>
+    </div>
+
+  </main>
 
   <script>
-    // ★ 自身の Worker のURLに置き換えてください
+    // ★ Cloudflare WorkerのURLをここに記述します
     const WORKER_URL = "https://knowledge-shelf-api.YOUR-SUBDOMAIN.workers.dev";
+
+    // ダミーデータ（初期表示＆オフラインデモ用）
+    const DEMO_DATA = {
+      indexes: [
+        { id: "idx1", title: "🧠 思考・哲学", type: "Index", appUrl: "notion://" },
+        { id: "idx2", title: "💻 テクノロジー", type: "Index", appUrl: "notion://" },
+        { id: "idx3", title: "📚 学習・リファレンス", type: "Index", appUrl: "notion://" }
+      ],
+      notes: [
+        { id: "n1", title: "Zettelkasten思想のまとめ", type: "Structure", indexIds: ["idx1"], appUrl: "notion://" },
+        { id: "n2", title: "知識の最小単位化（アトミックノート）", type: "Permanent", indexIds: ["idx1"], appUrl: "notion://" },
+        { id: "n3", title: "Notion API & Cloudflare構築メモ", type: "Structure", indexIds: ["idx2"], appUrl: "notion://" },
+        { id: "n4", title: "D3.js vs Vis.js 比較検証", type: "Permanent", indexIds: ["idx2"], appUrl: "notion://" },
+        { id: "n5", title: "Vis.js ネットワーク描画設定", type: "Permanent", indexIds: ["idx2"], appUrl: "notion://" },
+        { id: "n6", title: "読書録：思考の整理学", type: "Structure", indexIds: ["idx3"], appUrl: "notion://" },
+        { id: "n7", title: "一次情報と二次情報の切り分け", type: "Permanent", indexIds: ["idx3"], appUrl: "notion://" }
+      ]
+    };
 
     let state = {
       indexes: [],
       notes: [],
-      selectedIndexId: null, // null = 全表示
-      searchQuery: ""
+      selectedIndexId: null,
+      searchQuery: "",
+      network: null,
+      nodesDataSet: null,
+      edgesDataSet: null
     };
 
-    const searchInput = document.getElementById("searchInput");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const indexList = document.getElementById("indexList");
-    const noteList = document.getElementById("noteList");
+    // 視覚カラー定義（ラスタ＋モダン調）
+    const COLORS = {
+      Index: { bg: "#e056fd", border: "#be2edd" },
+      Structure: { bg: "#00f5d4", border: "#00bbf9" },
+      Permanent: { bg: "#00b4d8", border: "#0077b6" }
+    };
 
-    // データ初期取得
-    async function fetchData(forceRefresh = false) {
-      noteList.innerHTML = `<div class="text-xs text-slate-500 p-2">読み込み中...</div>`;
-      try {
-        const url = forceRefresh ? `${WORKER_URL}?refresh=1` : WORKER_URL;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        state.indexes = data.indexes || [];
-        state.notes = data.notes || [];
-        
-        renderIndexList();
-        renderNoteList();
-      } catch (err) {
-        noteList.innerHTML = `<div class="text-xs text-red-400 p-2">エラーが発生しました</div>`;
-      }
+    // --- 1. NETWORK GRAPH INITIALIZATION ---
+    function initNetwork() {
+      const container = document.getElementById("networkCanvas");
+      state.nodesDataSet = new vis.DataSet([]);
+      state.edgesDataSet = new vis.DataSet([]);
+
+      const data = { nodes: state.nodesDataSet, edges: state.edgesDataSet };
+      const options = {
+        nodes: {
+          shape: "dot",
+          font: { color: "#f8fafc", size: 11, face: "sans-serif" },
+          borderWidth: 2,
+          shadow: true
+        },
+        edges: {
+          color: { color: "#334155", highlight: "#818cf8" },
+          width: 1.5,
+          smooth: { type: "continuous" }
+        },
+        physics: {
+          solver: "forceAtlas2Based",
+          forceAtlas2Based: { gravitationalConstant: -30, centralGravity: 0.01, springLength: 70 }
+        },
+        interaction: { hover: true, zoomView: true }
+      };
+
+      state.network = new vis.Network(container, data, options);
+
+      // Node Click Event
+      state.network.on("click", function (params) {
+        if (params.nodes.length > 0) {
+          const nodeId = params.nodes[0];
+          openSlidePanel(nodeId);
+        } else {
+          closeSlidePanel();
+        }
+      });
     }
 
-    // Indexリスト描画
+    // --- 2. DATA LOAD & CONVERT (拡張用関数) ---
+    function loadNotionData(data) {
+      state.indexes = data.indexes || [];
+      state.notes = data.notes || [];
+
+      // 1. Vis.js Nodes 生成
+      const nodes = [];
+      const edges = [];
+
+      // Index Nodes
+      state.indexes.forEach(idx => {
+        nodes.push({
+          id: idx.id,
+          label: idx.title,
+          size: 18,
+          color: { background: COLORS.Index.bg, border: COLORS.Index.border },
+          type: "Index",
+          raw: idx
+        });
+      });
+
+      // Note Nodes
+      state.notes.forEach(note => {
+        const isStructure = note.type === "Structure";
+        const color = isStructure ? COLORS.Structure : COLORS.Permanent;
+        
+        nodes.push({
+          id: note.id,
+          label: note.title,
+          size: isStructure ? 13 : 9,
+          color: { background: color.bg, border: color.border },
+          type: note.type,
+          raw: note
+        });
+
+        // Edges (Index ↔ Cabinet)
+        (note.indexIds || []).forEach(indexId => {
+          edges.push({ from: indexId, to: note.id });
+        });
+      });
+
+      state.nodesDataSet.clear();
+      state.edgesDataSet.clear();
+      state.nodesDataSet.add(nodes);
+      state.edgesDataSet.add(edges);
+
+      renderIndexList();
+      renderNoteList();
+    }
+
+    // --- 3. SLIDE PANEL ---
+    function openSlidePanel(nodeId) {
+      const node = state.nodesDataSet.get(nodeId);
+      if (!node) return;
+
+      const raw = node.raw;
+      const isIndex = node.type === "Index";
+
+      document.getElementById("panelTitle").innerText = raw.title;
+      document.getElementById("panelType").innerText = node.type;
+      
+      const badge = document.getElementById("panelBadge");
+      badge.innerText = node.type;
+      badge.style.backgroundColor = COLORS[node.type]?.bg || "#64748b";
+      badge.style.color = "#0f172a";
+
+      // Tag/Relation rendering
+      const tagsContainer = document.getElementById("panelTags");
+      tagsContainer.innerHTML = "";
+      if (isIndex) {
+        tagsContainer.innerHTML = `<span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[10px]">目次（大分類）</span>`;
+      } else {
+        (raw.indexIds || []).forEach(idxId => {
+          const idxObj = state.indexes.find(i => i.id === idxId);
+          if (idxObj) {
+            tagsContainer.innerHTML += `<span class="bg-purple-950/80 border border-purple-800/50 text-purple-300 px-1.5 py-0.5 rounded text-[10px]">${idxObj.title}</span>`;
+          }
+        });
+      }
+
+      document.getElementById("panelAppBtn").href = raw.appUrl || "#";
+      document.getElementById("slidePanel").classList.remove("translate-x-full");
+    }
+
+    function closeSlidePanel() {
+      document.getElementById("slidePanel").classList.add("translate-x-full");
+    }
+
+    // --- 4. LIST VIEW RENDER ---
     function renderIndexList() {
       document.getElementById("indexCount").innerText = state.indexes.length;
-      
       let html = `
-        <div onclick="selectIndex(null)" 
-          class="px-2 py-1.5 rounded text-xs cursor-pointer truncate transition ${state.selectedIndexId === null ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
+        <div onclick="filterByIndex(null)" class="px-2 py-1.5 rounded text-xs cursor-pointer truncate transition ${state.selectedIndexId === null ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
           🌐 すべて表示
         </div>
       `;
-
       state.indexes.forEach(idx => {
         const isSelected = state.selectedIndexId === idx.id;
         html += `
-          <div onclick="selectIndex('${idx.id}')" 
-            class="px-2 py-1.5 rounded text-xs cursor-pointer truncate transition ${isSelected ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
-            📂 ${escapeHtml(idx.title)}
+          <div onclick="filterByIndex('${idx.id}')" class="px-2 py-1.5 rounded text-xs cursor-pointer truncate transition ${isSelected ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
+            📂 ${idx.title}
           </div>
         `;
       });
-
-      indexList.innerHTML = html;
+      document.getElementById("indexList").innerHTML = html;
     }
 
-    // ノートリスト描画
     function renderNoteList() {
       let filtered = state.notes;
-
-      // 1. Index フィルタリング
       if (state.selectedIndexId) {
         filtered = filtered.filter(n => n.indexIds.includes(state.selectedIndexId));
       }
-
-      // 2. 検索フィルタリング
       if (state.searchQuery.trim() !== "") {
         const q = state.searchQuery.toLowerCase();
         filtered = filtered.filter(n => n.title.toLowerCase().includes(q));
       }
 
       document.getElementById("noteCount").innerText = filtered.length;
-      
-      const currentIdx = state.indexes.find(i => i.id === state.selectedIndexId);
-      document.getElementById("currentFilterLabel").innerText = currentIdx ? currentIdx.title : "All Notes";
-
       if (filtered.length === 0) {
-        noteList.innerHTML = `<div class="text-xs text-slate-600 p-2">該当するノートがありません</div>`;
+        document.getElementById("noteList").innerHTML = `<div class="text-xs text-slate-600 p-2">該当するノートがありません</div>`;
         return;
       }
 
@@ -140,46 +332,88 @@
       filtered.forEach(note => {
         const isStructure = note.type === "Structure";
         const icon = isStructure ? "🟢" : "🔵";
-        const typeBadge = isStructure 
-          ? `<span class="text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/50 px-1 rounded">MOC</span>` 
-          : `<span class="text-[9px] bg-blue-950/80 text-blue-400 border border-blue-800/50 px-1 rounded">Perm</span>`;
-
         html += `
-          <a href="${note.appUrl}" target="_top" 
-            class="block p-2 rounded bg-slate-800/30 hover:bg-slate-800/80 border border-slate-800/50 hover:border-slate-700 transition group decoration-none">
-            <div class="flex items-center justify-between gap-1.5">
-              <span class="text-xs font-medium text-slate-200 group-hover:text-indigo-300 truncate">
-                ${icon} ${escapeHtml(note.title)}
-              </span>
-              ${typeBadge}
-            </div>
-          </a>
+          <div onclick="openSlidePanel('${note.id}')" class="p-2 rounded bg-slate-800/30 hover:bg-slate-800/80 border border-slate-800/50 hover:border-slate-700 transition cursor-pointer flex justify-between items-center">
+            <span class="text-xs font-medium text-slate-200 truncate">${icon} ${note.title}</span>
+            <span class="text-[9px] px-1 rounded ${isStructure ? 'bg-emerald-950 text-emerald-400' : 'bg-blue-950 text-blue-400'}">${note.type}</span>
+          </div>
         `;
       });
-
-      noteList.innerHTML = html;
+      document.getElementById("noteList").innerHTML = html;
     }
 
-    // イベントハンドラー
-    function selectIndex(id) {
+    function filterByIndex(id) {
       state.selectedIndexId = id;
       renderIndexList();
       renderNoteList();
     }
 
-    searchInput.addEventListener("input", (e) => {
+    // --- 5. SEARCH FILTER (GRAPH & LIST) ---
+    document.getElementById("searchInput").addEventListener("input", (e) => {
       state.searchQuery = e.target.value;
       renderNoteList();
+
+      // Graph node highlight
+      const q = state.searchQuery.toLowerCase();
+      const allNodes = state.nodesDataSet.get();
+      const updates = [];
+
+      allNodes.forEach(node => {
+        if (q === "") {
+          updates.push({ id: node.id, opacity: 1.0 });
+        } else {
+          const match = node.label.toLowerCase().includes(q);
+          updates.push({ id: node.id, opacity: match ? 1.0 : 0.15 });
+        }
+      });
+      state.nodesDataSet.update(updates);
     });
 
-    refreshBtn.addEventListener("click", () => fetchData(true));
+    // --- 6. VIEW SWITCHING ---
+    function switchView(view) {
+      const g = document.getElementById("viewGraph");
+      const l = document.getElementById("viewList");
+      const bg = document.getElementById("btnViewGraph");
+      const bl = document.getElementById("btnViewList");
 
-    function escapeHtml(str) {
-      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+      if (view === "graph") {
+        g.classList.remove("hidden");
+        l.classList.add("hidden");
+        bg.className = "px-2 py-1 rounded-md transition font-medium bg-indigo-600 text-white";
+        bl.className = "px-2 py-1 rounded-md transition font-medium text-slate-400 hover:text-slate-200";
+      } else {
+        g.classList.add("hidden");
+        l.classList.remove("hidden");
+        bl.className = "px-2 py-1 rounded-md transition font-medium bg-indigo-600 text-white";
+        bg.className = "px-2 py-1 rounded-md transition font-medium text-slate-400 hover:text-slate-200";
+      }
+    }
+
+    // --- 7. API FETCH ---
+    async function fetchNotionData(forceRefresh = false) {
+      if (!WORKER_URL || WORKER_URL.includes("YOUR-SUBDOMAIN")) {
+        console.log("Worker URL未設定のためデモデータで起動します");
+        loadNotionData(DEMO_DATA);
+        return;
+      }
+
+      try {
+        const url = forceRefresh ? `${WORKER_URL}?refresh=1` : WORKER_URL;
+        const res = await fetch(url);
+        const data = await res.json();
+        loadNotionData(data);
+        
+        const status = document.getElementById("dataStatus");
+        status.innerText = "API Live";
+        status.className = "text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      } catch (err) {
+        console.error("API取得失敗:", err);
+      }
     }
 
     // 初期化
-    fetchData();
+    initNetwork();
+    fetchNotionData();
   </script>
 </body>
 </html>
