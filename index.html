@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Note Search Widget</title>
 
-  <!-- Tailwind CSS & Vis.js -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 
@@ -15,21 +14,18 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
   </style>
 </head>
 <body class="h-full flex flex-col p-2.5 box-border select-none overflow-hidden bg-slate-950 text-slate-100">
 
-  <!-- TOP HEADER (設定で非表示も可) -->
+  <!-- TOP HEADER -->
   <header id="mainHeader" class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-800/80">
     <div class="flex items-center gap-2">
-      <!-- 見出しを NOTE SEARCH に変更 -->
       <h1 class="text-xs font-black tracking-widest rasta-gradient-text uppercase">NOTE SEARCH</h1>
-      <span id="dataStatus" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Demo</span>
+      <span id="dataStatus" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Loading...</span>
     </div>
 
     <div class="flex items-center gap-1.5">
@@ -47,9 +43,12 @@
     </div>
   </header>
 
+  <!-- ERROR DISPLAY CONTAINER -->
+  <div id="errorBanner" class="hidden mb-2 p-2 bg-red-950/80 border border-red-800 text-red-200 rounded text-xs overflow-x-auto"></div>
+
   <!-- SEARCH BAR -->
   <div class="mb-2">
-    <input type="text" id="searchInput" placeholder="🔍 ノート・キーワード・タイプを検索..." 
+    <input type="text" id="searchInput" placeholder="🔍 ノート・キーワード・タイプ・ジャンルを検索..." 
       class="w-full bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500 transition">
   </div>
 
@@ -60,7 +59,6 @@
     <div id="viewGraph" class="w-full h-full relative">
       <div id="networkCanvas" class="w-full h-full bg-slate-950/60"></div>
       
-      <!-- Graph Legend -->
       <div class="absolute bottom-1.5 left-1.5 bg-slate-950/80 backdrop-blur-md border border-slate-800/80 rounded-lg p-1.5 text-[9px] flex flex-wrap gap-2 text-slate-300 pointer-events-none max-w-[90%]">
         <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#e056fd]"></span> Index</div>
         <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#00f5d4]"></span> 🏗️ Structure</div>
@@ -78,7 +76,7 @@
           <span>Index</span>
           <span id="indexCount" class="bg-slate-800 px-1 rounded text-slate-400">0</span>
         </div>
-        <div id="indexList" class="flex-1 overflow-y-auto space-y-0.5 mt-1"></div>
+        <div id="indexList" class="flex-1 overflow-y-auto space-y-1 mt-1"></div>
       </div>
 
       <!-- Notes Column -->
@@ -102,7 +100,7 @@
         
         <div class="space-y-2.5 text-xs text-slate-400 border-t border-slate-800/80 pt-2.5">
           <div>
-            <span class="text-[9px] text-slate-500 block uppercase font-semibold">Cabinet Type</span>
+            <span class="text-[9px] text-slate-500 block uppercase font-semibold">Type / Category</span>
             <span id="panelType" class="text-slate-200 font-medium text-xs">-</span>
           </div>
           <div>
@@ -116,7 +114,6 @@
         </div>
       </div>
 
-      <!-- Action Jump Button -->
       <div class="pt-2.5 border-t border-slate-800 mt-2">
         <a id="panelAppBtn" href="#" target="_top" class="w-full block text-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-xs py-1.5 rounded-lg transition shadow decoration-none">
           🚀 Notionアプリで開く
@@ -127,17 +124,14 @@
   </main>
 
   <script>
-    // ★ WORKER URL を貼り付けてください
+    // ★ご自身の WORKER URL を入力してください
     const WORKER_URL = "knowledge-shelf.rudywarrior-oct24.workers.dev";
-    
-    // Notion埋め込みで完全にヘッダーを消したい場合は true に設定
     const HIDE_HEADER = false;
 
     if (HIDE_HEADER) {
       document.getElementById("mainHeader").style.display = "none";
     }
 
-    // 各 Select タイプに応じたカラープロパティ設定
     const TYPE_STYLES = {
       "Index": { bg: "#e056fd", border: "#be2edd", size: 18, label: "Index" },
       "🏗️｜Structure": { bg: "#00f5d4", border: "#00bbf9", size: 14, label: "Structure" },
@@ -150,21 +144,6 @@
     };
 
     const DEFAULT_STYLE = { bg: "#64748b", border: "#475569", size: 9, label: "Note" };
-
-    // オフライン・初期テスト用ダミーデータ
-    const DEMO_DATA = {
-      indexes: [
-        { id: "idx1", title: "🧠 思考・哲学", type: "Index", appUrl: "notion://" },
-        { id: "idx2", title: "💻 テクノロジー", type: "Index", appUrl: "notion://" }
-      ],
-      notes: [
-        { id: "n1", title: "Zettelkasten構造論", type: "🏗️｜Structure", indexIds: ["idx1"], referenceIds: [], appUrl: "notion://" },
-        { id: "n2", title: "アトミックノートの原則", type: "💡｜Permanent", indexIds: ["idx1"], referenceIds: ["n1"], appUrl: "notion://" },
-        { id: "n3", title: "Vis.js 公式ドキュメント", type: "🔗｜Reference", indexIds: ["idx2"], referenceIds: ["n4"], appUrl: "notion://" },
-        { id: "n4", title: "グラフネットワーク描画設計", type: "🏗️｜Structure", indexIds: ["idx2"], referenceIds: [], appUrl: "notion://" },
-        { id: "n5", title: "プロジェクトアイデアメモ", type: "📝｜Memo／Idea", indexIds: ["idx2"], referenceIds: [], appUrl: "notion://" }
-      ]
-    };
 
     let state = {
       indexes: [],
@@ -219,7 +198,6 @@
       const nodes = [];
       const edges = [];
 
-      // Index ノードの生成
       state.indexes.forEach(idx => {
         const style = TYPE_STYLES["Index"];
         nodes.push({
@@ -232,7 +210,6 @@
         });
       });
 
-      // Cabinet ノードおよびエッジの生成
       state.notes.forEach(note => {
         const style = TYPE_STYLES[note.type] || DEFAULT_STYLE;
         
@@ -245,12 +222,10 @@
           raw: note
         });
 
-        // Index ↔ Cabinet 間の接続
         (note.indexIds || []).forEach(indexId => {
           edges.push({ from: indexId, to: note.id });
         });
 
-        // Cabinet ↔ Reference (他ノート) 間の接続
         (note.referenceIds || []).forEach(refId => {
           edges.push({ from: note.id, to: refId, dashes: true });
         });
@@ -274,14 +249,13 @@
       const style = TYPE_STYLES[node.type] || DEFAULT_STYLE;
 
       document.getElementById("panelTitle").innerText = raw.title;
-      document.getElementById("panelType").innerText = node.type;
+      document.getElementById("panelType").innerText = isIndex ? (raw.category ? `Index (${raw.category})` : "Index") : node.type;
       
       const badge = document.getElementById("panelBadge");
       badge.innerText = style.label || node.type;
       badge.style.backgroundColor = style.bg;
       badge.style.color = "#0f172a";
 
-      // Index Tags
       const idxContainer = document.getElementById("panelIndexTags");
       idxContainer.innerHTML = "";
       if (isIndex) {
@@ -297,7 +271,6 @@
         idxContainer.innerHTML = `<span class="text-slate-600 text-[10px]">なし</span>`;
       }
 
-      // Reference Tags
       const refContainer = document.getElementById("panelRefTags");
       refContainer.innerHTML = "";
       if (!isIndex && raw.referenceIds && raw.referenceIds.length > 0) {
@@ -328,9 +301,11 @@
       `;
       state.indexes.forEach(idx => {
         const isSelected = state.selectedIndexId === idx.id;
+        const categoryBadge = idx.category ? `<span class="ml-1 text-[8px] px-1 py-0.1 bg-slate-800 text-slate-400 rounded">${idx.category}</span>` : '';
         html += `
-          <div onclick="filterByIndex('${idx.id}')" class="px-2 py-1 rounded text-xs cursor-pointer truncate transition ${isSelected ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
-            📂 ${idx.title}
+          <div onclick="filterByIndex('${idx.id}')" class="px-2 py-1 rounded text-xs cursor-pointer truncate transition flex justify-between items-center ${isSelected ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
+            <span class="truncate">📂 ${idx.title}</span>
+            ${categoryBadge}
           </div>
         `;
       });
@@ -384,7 +359,7 @@
         if (q === "") {
           updates.push({ id: node.id, opacity: 1.0 });
         } else {
-          const match = node.label.toLowerCase().includes(q) || node.type.toLowerCase().includes(q);
+          const match = node.label.toLowerCase().includes(q) || node.type.toLowerCase().includes(q) || (node.raw.category && node.raw.category.toLowerCase().includes(q));
           updates.push({ id: node.id, opacity: match ? 1.0 : 0.12 });
         }
       });
@@ -403,7 +378,7 @@
         bg.className = "px-2 py-0.5 rounded transition font-medium bg-indigo-600 text-white";
         bl.className = "px-2 py-0.5 rounded transition font-medium text-slate-400 hover:text-slate-200";
       } else {
-        g.classList.add("hidden");
+        g.classList.remove("hidden");
         l.classList.remove("hidden");
         bl.className = "px-2 py-0.5 rounded transition font-medium bg-indigo-600 text-white";
         bg.className = "px-2 py-0.5 rounded transition font-medium text-slate-400 hover:text-slate-200";
@@ -411,8 +386,11 @@
     }
 
     async function fetchNotionData(forceRefresh = false) {
+      const errorBanner = document.getElementById("errorBanner");
+      errorBanner.classList.add("hidden");
+
       if (!WORKER_URL || WORKER_URL.includes("YOUR-SUBDOMAIN")) {
-        loadNotionData(DEMO_DATA);
+        document.getElementById("dataStatus").innerText = "URL未設定";
         return;
       }
 
@@ -420,6 +398,11 @@
         const url = forceRefresh ? `${WORKER_URL}?refresh=1` : WORKER_URL;
         const res = await fetch(url);
         const data = await res.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
         loadNotionData(data);
         
         const status = document.getElementById("dataStatus");
@@ -427,6 +410,10 @@
         status.className = "text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
       } catch (err) {
         console.error("API Fetch Error:", err);
+        errorBanner.innerText = `🚨 エラー: ${err.message}`;
+        errorBanner.classList.remove("hidden");
+        document.getElementById("dataStatus").innerText = "Error";
+        document.getElementById("dataStatus").className = "text-[9px] px-1.5 py-0.2 rounded bg-red-500/10 text-red-400 border border-red-500/20";
       }
     }
 
