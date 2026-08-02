@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full bg-slate-950 text-slate-100 font-sans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Shelf Widget</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* カスタムスクロールバー (Evernote風) */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="h-full flex flex-col p-2 box-border select-none overflow-hidden">
+
+  <!-- ヘッダー＆検索バー -->
+  <div class="flex gap-2 mb-2">
+    <div class="relative flex-1">
+      <input type="text" id="searchInput" placeholder="🔍 ナレッジを爆速検索..." 
+        class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500">
+    </div>
+    <button id="refreshBtn" title="手動更新" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 px-2.5 py-1.5 rounded-lg text-xs transition">
+      🔄
+    </button>
+  </div>
+
+  <!-- メインコンテンツ (Evernote風 2列レイアウト) -->
+  <div class="flex-1 grid grid-cols-3 gap-2 min-h-0">
+    
+    <!-- 左：INDEX（大分類） -->
+    <div class="col-span-1 bg-slate-900/60 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
+      <div class="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 flex justify-between items-center">
+        <span>Index</span>
+        <span id="indexCount" class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">0</span>
+      </div>
+      <div id="indexList" class="flex-1 overflow-y-auto space-y-0.5 mt-1">
+        <!-- JSで動的生成 -->
+      </div>
+    </div>
+
+    <!-- 右：NOTES（Structure / Permanent ノート） -->
+    <div class="col-span-2 bg-slate-900/60 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
+      <div class="text-[10px] font-bold text-slate-500 uppercase px-2 py-1 flex justify-between items-center">
+        <span id="currentFilterLabel">All Notes</span>
+        <span id="noteCount" class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">0</span>
+      </div>
+      <div id="noteList" class="flex-1 overflow-y-auto space-y-1 mt-1">
+        <!-- JSで動的生成 -->
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ★ 自身の Worker のURLに置き換えてください
+    const WORKER_URL = "https://knowledge-shelf-api.YOUR-SUBDOMAIN.workers.dev";
+
+    let state = {
+      indexes: [],
+      notes: [],
+      selectedIndexId: null, // null = 全表示
+      searchQuery: ""
+    };
+
+    const searchInput = document.getElementById("searchInput");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const indexList = document.getElementById("indexList");
+    const noteList = document.getElementById("noteList");
+
+    // データ初期取得
+    async function fetchData(forceRefresh = false) {
+      noteList.innerHTML = `<div class="text-xs text-slate-500 p-2">読み込み中...</div>`;
+      try {
+        const url = forceRefresh ? `${WORKER_URL}?refresh=1` : WORKER_URL;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        state.indexes = data.indexes || [];
+        state.notes = data.notes || [];
+        
+        renderIndexList();
+        renderNoteList();
+      } catch (err) {
+        noteList.innerHTML = `<div class="text-xs text-red-400 p-2">エラーが発生しました</div>`;
+      }
+    }
+
+    // Indexリスト描画
+    function renderIndexList() {
+      document.getElementById("indexCount").innerText = state.indexes.length;
+      
+      let html = `
+        <div onclick="selectIndex(null)" 
+          class="px-2 py-1.5 rounded text-xs cursor-pointer truncate transition ${state.selectedIndexId === null ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
+          🌐 すべて表示
+        </div>
+      `;
+
+      state.indexes.forEach(idx => {
+        const isSelected = state.selectedIndexId === idx.id;
+        html += `
+          <div onclick="selectIndex('${idx.id}')" 
+            class="px-2 py-1.5 rounded text-xs cursor-pointer truncate transition ${isSelected ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
+            📂 ${escapeHtml(idx.title)}
+          </div>
+        `;
+      });
+
+      indexList.innerHTML = html;
+    }
+
+    // ノートリスト描画
+    function renderNoteList() {
+      let filtered = state.notes;
+
+      // 1. Index フィルタリング
+      if (state.selectedIndexId) {
+        filtered = filtered.filter(n => n.indexIds.includes(state.selectedIndexId));
+      }
+
+      // 2. 検索フィルタリング
+      if (state.searchQuery.trim() !== "") {
+        const q = state.searchQuery.toLowerCase();
+        filtered = filtered.filter(n => n.title.toLowerCase().includes(q));
+      }
+
+      document.getElementById("noteCount").innerText = filtered.length;
+      
+      const currentIdx = state.indexes.find(i => i.id === state.selectedIndexId);
+      document.getElementById("currentFilterLabel").innerText = currentIdx ? currentIdx.title : "All Notes";
+
+      if (filtered.length === 0) {
+        noteList.innerHTML = `<div class="text-xs text-slate-600 p-2">該当するノートがありません</div>`;
+        return;
+      }
+
+      let html = "";
+      filtered.forEach(note => {
+        const isStructure = note.type === "Structure";
+        const icon = isStructure ? "🟢" : "🔵";
+        const typeBadge = isStructure 
+          ? `<span class="text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/50 px-1 rounded">MOC</span>` 
+          : `<span class="text-[9px] bg-blue-950/80 text-blue-400 border border-blue-800/50 px-1 rounded">Perm</span>`;
+
+        html += `
+          <a href="${note.appUrl}" target="_top" 
+            class="block p-2 rounded bg-slate-800/30 hover:bg-slate-800/80 border border-slate-800/50 hover:border-slate-700 transition group decoration-none">
+            <div class="flex items-center justify-between gap-1.5">
+              <span class="text-xs font-medium text-slate-200 group-hover:text-indigo-300 truncate">
+                ${icon} ${escapeHtml(note.title)}
+              </span>
+              ${typeBadge}
+            </div>
+          </a>
+        `;
+      });
+
+      noteList.innerHTML = html;
+    }
+
+    // イベントハンドラー
+    function selectIndex(id) {
+      state.selectedIndexId = id;
+      renderIndexList();
+      renderNoteList();
+    }
+
+    searchInput.addEventListener("input", (e) => {
+      state.searchQuery = e.target.value;
+      renderNoteList();
+    });
+
+    refreshBtn.addEventListener("click", () => fetchData(true));
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+    }
+
+    // 初期化
+    fetchData();
+  </script>
+</body>
+</html>
