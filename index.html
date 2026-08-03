@@ -1,424 +1,180 @@
-<!DOCTYPE html>
-<html lang="ja" class="h-full bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+<!doctype html>
+<html lang="ja" class="h-full bg-slate-950">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Note Search Widget</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Knowledge Graph</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
-    .rasta-gradient-text {
-      background: linear-gradient(135deg, #ff2a5f 0%, #ffbe0b 50%, #00f5d4 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+    .network-canvas canvas { outline: none; }
+    .panel-open { transform: translateX(0); }
   </style>
 </head>
-<body class="h-full flex flex-col p-2.5 box-border select-none overflow-hidden bg-slate-950 text-slate-100">
-
-  <!-- TOP HEADER -->
-  <header id="mainHeader" class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-slate-800/80">
-    <div class="flex items-center gap-2">
-      <h1 class="text-xs font-black tracking-widest rasta-gradient-text uppercase">NOTE SEARCH</h1>
-      <span id="dataStatus" class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Loading...</span>
-    </div>
-
-    <div class="flex items-center gap-1.5">
-      <div class="bg-slate-900 border border-slate-800 rounded-lg p-0.5 flex text-[11px]">
-        <button id="btnViewGraph" onclick="switchView('graph')" class="px-2 py-0.5 rounded transition font-medium bg-indigo-600 text-white">
-          🕸️ Graph
-        </button>
-        <button id="btnViewList" onclick="switchView('list')" class="px-2 py-0.5 rounded transition font-medium text-slate-400 hover:text-slate-200">
-          📑 List
-        </button>
-      </div>
-      <button onclick="fetchNotionData(true)" title="手動更新" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-2 py-0.5 rounded text-[11px] transition">
-        🔄
-      </button>
-    </div>
-  </header>
-
-  <!-- ERROR DISPLAY CONTAINER -->
-  <div id="errorBanner" class="hidden mb-2 p-2 bg-red-950/80 border border-red-800 text-red-200 rounded text-xs overflow-x-auto"></div>
-
-  <!-- SEARCH BAR -->
-  <div class="mb-2">
-    <input type="text" id="searchInput" placeholder="🔍 ノート・キーワード・タイプ・ジャンルを検索..." 
-      class="w-full bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-1 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 placeholder-slate-500 transition">
-  </div>
-
-  <!-- MAIN CONTENT -->
-  <main class="flex-1 relative min-h-0 border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/40">
-
-    <!-- GRAPH VIEW -->
-    <div id="viewGraph" class="w-full h-full relative">
-      <div id="networkCanvas" class="w-full h-full bg-slate-950/60"></div>
-      
-      <div class="absolute bottom-1.5 left-1.5 bg-slate-950/80 backdrop-blur-md border border-slate-800/80 rounded-lg p-1.5 text-[9px] flex flex-wrap gap-2 text-slate-300 pointer-events-none max-w-[90%]">
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#e056fd]"></span> Index</div>
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#00f5d4]"></span> 🏗️ Structure</div>
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#00b4d8]"></span> 💡 Permanent</div>
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#a855f7]"></span> 🔗 Reference</div>
-        <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#64748b]"></span> 他 Select</div>
-      </div>
-    </div>
-
-    <!-- LIST VIEW -->
-    <div id="viewList" class="w-full h-full hidden grid grid-cols-3 gap-2 p-2">
-      <!-- Index Column -->
-      <div class="col-span-1 bg-slate-950/50 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
-        <div class="text-[9px] font-bold text-slate-500 uppercase px-1 py-0.5 flex justify-between">
-          <span>Index</span>
-          <span id="indexCount" class="bg-slate-800 px-1 rounded text-slate-400">0</span>
-        </div>
-        <div id="indexList" class="flex-1 overflow-y-auto space-y-1 mt-1"></div>
-      </div>
-
-      <!-- Notes Column -->
-      <div class="col-span-2 bg-slate-950/50 border border-slate-800/80 rounded-lg p-1.5 flex flex-col min-h-0">
-        <div class="text-[9px] font-bold text-slate-500 uppercase px-1 py-0.5 flex justify-between">
-          <span id="currentFilterLabel">Notes</span>
-          <span id="noteCount" class="bg-slate-800 px-1 rounded text-slate-400">0</span>
-        </div>
-        <div id="noteList" class="flex-1 overflow-y-auto space-y-1 mt-1"></div>
-      </div>
-    </div>
-
-    <!-- SLIDE PANEL -->
-    <div id="slidePanel" class="absolute top-0 right-0 w-72 h-full bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 transform translate-x-full transition-transform duration-300 ease-in-out p-3.5 flex flex-col justify-between z-20 shadow-2xl overflow-y-auto">
+<body class="h-full overflow-hidden bg-slate-950 font-sans text-slate-100">
+  <main class="mx-auto flex h-full max-w-7xl flex-col p-3 sm:p-5">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
       <div>
-        <div class="flex justify-between items-start mb-2">
-          <span id="panelBadge" class="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Type</span>
-          <button onclick="closeSlidePanel()" class="text-slate-400 hover:text-white text-sm">✕</button>
-        </div>
-        <h2 id="panelTitle" class="text-xs font-bold text-slate-100 mb-2 leading-snug">Note Title</h2>
-        
-        <div class="space-y-2.5 text-xs text-slate-400 border-t border-slate-800/80 pt-2.5">
-          <div>
-            <span class="text-[9px] text-slate-500 block uppercase font-semibold">Type / Category</span>
-            <span id="panelType" class="text-slate-200 font-medium text-xs">-</span>
-          </div>
-          <div>
-            <span class="text-[9px] text-slate-500 block uppercase font-semibold mb-1">Index リレーション</span>
-            <div id="panelIndexTags" class="flex flex-wrap gap-1"></div>
-          </div>
-          <div>
-            <span class="text-[9px] text-slate-500 block uppercase font-semibold mb-1">Reference リレーション</span>
-            <div id="panelRefTags" class="flex flex-wrap gap-1"></div>
-          </div>
-        </div>
+        <p class="mb-0.5 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">Notion connected</p>
+        <h1 class="text-xl font-bold tracking-tight text-white">Knowledge Graph</h1>
       </div>
-
-      <div class="pt-2.5 border-t border-slate-800 mt-2">
-        <a id="panelAppBtn" href="#" target="_top" class="w-full block text-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-xs py-1.5 rounded-lg transition shadow decoration-none">
-          🚀 Notionアプリで開く
-        </a>
+      <div class="flex items-center gap-2">
+        <span id="status" class="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-400">Mock data</span>
+        <button id="refreshButton" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500/60">↻ 更新</button>
       </div>
-    </div>
+    </header>
 
+    <section class="mt-3 flex flex-col gap-2 sm:flex-row">
+      <label class="relative flex-1">
+        <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-500">⌕</span>
+        <input id="searchInput" type="search" placeholder="ノート、Index、タグを検索…" class="w-full rounded-xl border border-slate-800 bg-slate-900 py-2.5 pl-9 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20" />
+      </label>
+      <div class="flex rounded-xl border border-slate-800 bg-slate-900 p-1">
+        <button data-view="graph" class="view-button rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-white">グラフ</button>
+        <button data-view="list" class="view-button rounded-lg px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:text-white">リスト</button>
+      </div>
+    </section>
+
+    <section class="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 shadow-2xl shadow-black/20">
+      <div id="graphView" class="network-canvas absolute inset-0"></div>
+      <div id="listView" class="absolute inset-0 hidden overflow-y-auto p-3 sm:p-5"></div>
+      <div id="emptyState" class="pointer-events-none absolute inset-0 hidden items-center justify-center text-sm text-slate-500">一致するノートはありません</div>
+      <div class="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-slate-700/80 bg-slate-950/80 px-2 py-1 text-[10px] text-slate-400 backdrop-blur">ドラッグで移動・ホイールで拡大</div>
+    </section>
   </main>
 
-  <script>
-    // ★ご自身の WORKER URL を入力してください
-    const WORKER_URL = "https://knowledge-shelf.rudywarrior-oct24.workers.dev";
-    const HIDE_HEADER = false;
+  <div id="panelShade" class="fixed inset-0 z-10 hidden bg-black/50 backdrop-blur-[1px]"></div>
+  <aside id="detailPanel" class="fixed inset-y-0 right-0 z-20 flex w-full max-w-md translate-x-full flex-col border-l border-slate-700 bg-slate-950 shadow-2xl transition-transform duration-300">
+    <div class="flex items-center justify-between border-b border-slate-800 p-5">
+      <p id="panelType" class="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-400">Note</p>
+      <button id="closePanel" aria-label="パネルを閉じる" class="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white">✕</button>
+    </div>
+    <div class="min-h-0 flex-1 overflow-y-auto p-5">
+      <h2 id="panelTitle" class="text-xl font-bold leading-snug text-white"></h2>
+      <p id="panelSummary" class="mt-3 text-sm leading-7 text-slate-300"></p>
+      <div id="panelTags" class="mt-4 flex flex-wrap gap-1.5"></div>
+      <div class="mt-7 border-t border-slate-800 pt-5">
+        <p class="text-xs font-medium text-slate-500">関連するIndex</p>
+        <div id="panelIndexes" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+      <div id="panelReferencesSection" class="mt-6 hidden border-t border-slate-800 pt-5">
+        <p class="text-xs font-medium text-slate-500">関連ノート</p>
+        <div id="panelReferences" class="mt-2 space-y-2"></div>
+      </div>
+    </div>
+    <div class="border-t border-slate-800 p-5">
+      <a id="notionLink" target="_blank" rel="noopener noreferrer" class="block rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-3 text-center text-sm font-semibold text-white transition hover:brightness-110">↗ Notionで開く</a>
+    </div>
+  </aside>
 
-    if (HIDE_HEADER) {
-      document.getElementById("mainHeader").style.display = "none";
-    }
+<script>
+  // Worker APIを使う場合はURLを指定してください。
+  // API形式: { indexes: [{id,title,summary,appUrl}], notes: [{id,title,summary,type,tags,indexIds,referenceIds,appUrl}] }
+  const API_URL = "";
 
-    const TYPE_STYLES = {
-      "Index": { bg: "#e056fd", border: "#be2edd", size: 18, label: "Index" },
-      "🏗️｜Structure": { bg: "#00f5d4", border: "#00bbf9", size: 14, label: "Structure" },
-      "💡｜Permanent": { bg: "#00b4d8", border: "#0077b6", size: 10, label: "Permanent" },
-      "🔗｜Reference": { bg: "#a855f7", border: "#7e22ce", size: 11, label: "Reference" },
-      "📝｜Memo／Idea": { bg: "#f59e0b", border: "#d97706", size: 9, label: "Memo/Idea" },
-      "📖｜Journal": { bg: "#ec4899", border: "#db2777", size: 9, label: "Journal" },
-      "💴｜Finance": { bg: "#10b981", border: "#059669", size: 9, label: "Finance" },
-      "💼｜Work": { bg: "#3b82f6", border: "#2563eb", size: 10, label: "Work" }
-    };
+  const mockData = {
+    indexes: [
+      { id: "idx-life", title: "Life OS", summary: "日々の暮らしと習慣を整えるための大分類。", appUrl: "https://www.notion.so/" },
+      { id: "idx-work", title: "Creative Work", summary: "制作、発信、プロジェクト進行の知識。", appUrl: "https://www.notion.so/" },
+      { id: "idx-learn", title: "Learning", summary: "読書・学習・考察を蓄積する棚。", appUrl: "https://www.notion.so/" }
+    ],
+    notes: [
+      { id: "note-focus", title: "深い集中をつくる朝の設計", summary: "通知を切り、最初の90分を最重要タスクに使うための短い手順。", type: "Note", tags: ["習慣", "集中"], indexIds: ["idx-life", "idx-work"], referenceIds: ["note-journal"], appUrl: "https://www.notion.so/" },
+      { id: "note-journal", title: "週次レビューの質問集", summary: "先週の行動を振り返り、次の一週間を穏やかに設計する質問。", type: "Journal", tags: ["レビュー", "内省"], indexIds: ["idx-life"], referenceIds: ["note-focus"], appUrl: "https://www.notion.so/" },
+      { id: "note-writing", title: "文章の種を育てる方法", summary: "キャプチャから公開まで、アイデアを枯らさないための小さなワークフロー。", type: "Essay", tags: ["執筆", "創作"], indexIds: ["idx-work"], referenceIds: ["note-library"], appUrl: "https://www.notion.so/" },
+      { id: "note-library", title: "読書ノートの再利用ルール", summary: "引用・自分の言葉・次の行動をつなぎ、読書を実践へ渡す。", type: "Book", tags: ["読書", "知識管理"], indexIds: ["idx-learn", "idx-work"], referenceIds: ["note-writing"], appUrl: "https://www.notion.so/" },
+      { id: "note-tools", title: "個人ツールの選び方", summary: "新しいツールを導入する前に確認したい、運用コストと接続性の基準。", type: "Note", tags: ["ツール", "設計"], indexIds: ["idx-work", "idx-life"], referenceIds: [], appUrl: "https://www.notion.so/" }
+    ]
+  };
 
-    const DEFAULT_STYLE = { bg: "#64748b", border: "#475569", size: 9, label: "Note" };
+  const state = { data: mockData, network: null, currentView: "graph", query: "" };
+  const graph = document.getElementById("graphView");
+  const list = document.getElementById("listView");
+  const empty = document.getElementById("emptyState");
+  const status = document.getElementById("status");
+  const panel = document.getElementById("detailPanel");
+  const shade = document.getElementById("panelShade");
 
-    let state = {
-      indexes: [],
-      notes: [],
-      selectedIndexId: null,
-      searchQuery: "",
-      network: null,
-      nodesDataSet: null,
-      edgesDataSet: null
-    };
+  function esc(value = "") { const div = document.createElement("div"); div.textContent = value; return div.innerHTML; }
+  function typeColor(type) { return ({ Journal: "#f59e0b", Book: "#a78bfa", Essay: "#fb7185", Note: "#22d3ee" })[type] || "#22d3ee"; }
+  function allItems() { return [...state.data.indexes.map(x => ({ ...x, kind: "Index", tags: [], indexIds: [], referenceIds: [] })), ...state.data.notes.map(x => ({ ...x, kind: "Note" }))]; }
+  function filteredData() {
+    const q = state.query.trim().toLowerCase();
+    if (!q) return state.data;
+    const hit = item => [item.title, item.summary, ...(item.tags || [])].join(" ").toLowerCase().includes(q);
+    const matchingNotes = state.data.notes.filter(hit);
+    const indexIds = new Set(matchingNotes.flatMap(n => n.indexIds));
+    return { indexes: state.data.indexes.filter(i => hit(i) || indexIds.has(i.id)), notes: matchingNotes };
+  }
 
-    function initNetwork() {
-      const container = document.getElementById("networkCanvas");
-      state.nodesDataSet = new vis.DataSet([]);
-      state.edgesDataSet = new vis.DataSet([]);
-
-      const data = { nodes: state.nodesDataSet, edges: state.edgesDataSet };
-      const options = {
-        nodes: {
-          shape: "dot",
-          font: { color: "#f8fafc", size: 10, face: "sans-serif" },
-          borderWidth: 2,
-          shadow: true
-        },
-        edges: {
-          color: { color: "#334155", highlight: "#818cf8" },
-          width: 1.2,
-          smooth: { type: "continuous" }
-        },
-        physics: {
-          solver: "forceAtlas2Based",
-          forceAtlas2Based: { gravitationalConstant: -25, centralGravity: 0.01, springLength: 60 }
-        },
-        interaction: { hover: true, zoomView: true }
-      };
-
-      state.network = new vis.Network(container, data, options);
-
-      state.network.on("click", function (params) {
-        if (params.nodes.length > 0) {
-          openSlidePanel(params.nodes[0]);
-        } else {
-          closeSlidePanel();
-        }
-      });
-    }
-
-    function loadNotionData(data) {
-      state.indexes = data.indexes || [];
-      state.notes = data.notes || [];
-
-      const nodes = [];
-      const edges = [];
-
-      state.indexes.forEach(idx => {
-        const style = TYPE_STYLES["Index"];
-        nodes.push({
-          id: idx.id,
-          label: idx.title,
-          size: style.size,
-          color: { background: style.bg, border: style.border },
-          type: "Index",
-          raw: idx
-        });
-      });
-
-      state.notes.forEach(note => {
-        const style = TYPE_STYLES[note.type] || DEFAULT_STYLE;
-        
-        nodes.push({
-          id: note.id,
-          label: note.title,
-          size: style.size,
-          color: { background: style.bg, border: style.border },
-          type: note.type,
-          raw: note
-        });
-
-        (note.indexIds || []).forEach(indexId => {
-          edges.push({ from: indexId, to: note.id });
-        });
-
-        (note.referenceIds || []).forEach(refId => {
-          edges.push({ from: note.id, to: refId, dashes: true });
-        });
-      });
-
-      state.nodesDataSet.clear();
-      state.edgesDataSet.clear();
-      state.nodesDataSet.add(nodes);
-      state.edgesDataSet.add(edges);
-
-      renderIndexList();
-      renderNoteList();
-    }
-
-    function openSlidePanel(nodeId) {
-      const node = state.nodesDataSet.get(nodeId);
-      if (!node) return;
-
-      const raw = node.raw;
-      const isIndex = node.type === "Index";
-      const style = TYPE_STYLES[node.type] || DEFAULT_STYLE;
-
-      document.getElementById("panelTitle").innerText = raw.title;
-      document.getElementById("panelType").innerText = isIndex ? (raw.category ? `Index (${raw.category})` : "Index") : node.type;
-      
-      const badge = document.getElementById("panelBadge");
-      badge.innerText = style.label || node.type;
-      badge.style.backgroundColor = style.bg;
-      badge.style.color = "#0f172a";
-
-      const idxContainer = document.getElementById("panelIndexTags");
-      idxContainer.innerHTML = "";
-      if (isIndex) {
-        idxContainer.innerHTML = `<span class="bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded text-[10px]">大分類 (Index)</span>`;
-      } else if (raw.indexIds && raw.indexIds.length > 0) {
-        raw.indexIds.forEach(idxId => {
-          const idxObj = state.indexes.find(i => i.id === idxId);
-          if (idxObj) {
-            idxContainer.innerHTML += `<span class="bg-purple-950/80 border border-purple-800/50 text-purple-300 px-1.5 py-0.5 rounded text-[10px]">${idxObj.title}</span>`;
-          }
-        });
-      } else {
-        idxContainer.innerHTML = `<span class="text-slate-600 text-[10px]">なし</span>`;
-      }
-
-      const refContainer = document.getElementById("panelRefTags");
-      refContainer.innerHTML = "";
-      if (!isIndex && raw.referenceIds && raw.referenceIds.length > 0) {
-        raw.referenceIds.forEach(refId => {
-          const refObj = state.notes.find(n => n.id === refId);
-          if (refObj) {
-            refContainer.innerHTML += `<span class="bg-cyan-950/80 border border-cyan-800/50 text-cyan-300 px-1.5 py-0.5 rounded text-[10px]">🔗 ${refObj.title}</span>`;
-          }
-        });
-      } else {
-        refContainer.innerHTML = `<span class="text-slate-600 text-[10px]">なし</span>`;
-      }
-
-      document.getElementById("panelAppBtn").href = raw.appUrl || "#";
-      document.getElementById("slidePanel").classList.remove("translate-x-full");
-    }
-
-    function closeSlidePanel() {
-      document.getElementById("slidePanel").classList.add("translate-x-full");
-    }
-
-    function renderIndexList() {
-      document.getElementById("indexCount").innerText = state.indexes.length;
-      let html = `
-        <div onclick="filterByIndex(null)" class="px-2 py-1 rounded text-xs cursor-pointer truncate transition ${state.selectedIndexId === null ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
-          🌐 すべて表示
-        </div>
-      `;
-      state.indexes.forEach(idx => {
-        const isSelected = state.selectedIndexId === idx.id;
-        const categoryBadge = idx.category ? `<span class="ml-1 text-[8px] px-1 py-0.1 bg-slate-800 text-slate-400 rounded">${idx.category}</span>` : '';
-        html += `
-          <div onclick="filterByIndex('${idx.id}')" class="px-2 py-1 rounded text-xs cursor-pointer truncate transition flex justify-between items-center ${isSelected ? 'bg-indigo-600/30 text-indigo-300 font-medium' : 'hover:bg-slate-800/50 text-slate-400'}">
-            <span class="truncate">📂 ${idx.title}</span>
-            ${categoryBadge}
-          </div>
-        `;
-      });
-      document.getElementById("indexList").innerHTML = html;
-    }
-
-    function renderNoteList() {
-      let filtered = state.notes;
-      if (state.selectedIndexId) {
-        filtered = filtered.filter(n => (n.indexIds || []).includes(state.selectedIndexId));
-      }
-      if (state.searchQuery.trim() !== "") {
-        const q = state.searchQuery.toLowerCase();
-        filtered = filtered.filter(n => n.title.toLowerCase().includes(q) || n.type.toLowerCase().includes(q));
-      }
-
-      document.getElementById("noteCount").innerText = filtered.length;
-      if (filtered.length === 0) {
-        document.getElementById("noteList").innerHTML = `<div class="text-xs text-slate-600 p-2">該当ノートなし</div>`;
-        return;
-      }
-
-      let html = "";
-      filtered.forEach(note => {
-        const style = TYPE_STYLES[note.type] || DEFAULT_STYLE;
-        html += `
-          <div onclick="openSlidePanel('${note.id}')" class="p-1.5 rounded bg-slate-800/30 hover:bg-slate-800/80 border border-slate-800/50 hover:border-slate-700 transition cursor-pointer flex justify-between items-center gap-1">
-            <span class="text-xs font-medium text-slate-200 truncate">${note.title}</span>
-            <span class="text-[9px] px-1 py-0.2 rounded shrink-0" style="background-color: ${style.bg}22; color: ${style.bg}; border: 1px solid ${style.bg}44">${note.type}</span>
-          </div>
-        `;
-      });
-      document.getElementById("noteList").innerHTML = html;
-    }
-
-    function filterByIndex(id) {
-      state.selectedIndexId = id;
-      renderIndexList();
-      renderNoteList();
-    }
-
-    document.getElementById("searchInput").addEventListener("input", (e) => {
-      state.searchQuery = e.target.value;
-      renderNoteList();
-
-      const q = state.searchQuery.toLowerCase();
-      const allNodes = state.nodesDataSet.get();
-      const updates = [];
-
-      allNodes.forEach(node => {
-        if (q === "") {
-          updates.push({ id: node.id, opacity: 1.0 });
-        } else {
-          const match = node.label.toLowerCase().includes(q) || node.type.toLowerCase().includes(q) || (node.raw.category && node.raw.category.toLowerCase().includes(q));
-          updates.push({ id: node.id, opacity: match ? 1.0 : 0.12 });
-        }
-      });
-      state.nodesDataSet.update(updates);
+  function drawGraph() {
+    const data = filteredData();
+    const nodes = [
+      ...data.indexes.map(index => ({ id: index.id, label: index.title, group: "index", shape: "box", margin: 12, borderWidth: 2, color: { background: "#172554", border: "#38bdf8", highlight: { background: "#1e3a8a", border: "#67e8f9" } }, font: { color: "#e0f2fe", face: "system-ui", bold: true } })),
+      ...data.notes.map(note => ({ id: note.id, label: note.title, group: "note", shape: "dot", size: 17, color: { background: typeColor(note.type), border: "#e2e8f0", highlight: { background: "#fff", border: typeColor(note.type) } }, font: { color: "#e2e8f0", face: "system-ui", size: 13, strokeWidth: 4, strokeColor: "#0f172a" } }))
+    ];
+    const ids = new Set(nodes.map(n => n.id));
+    const edges = data.notes.flatMap(note => [
+      ...note.indexIds.filter(id => ids.has(id)).map(id => ({ from: id, to: note.id, color: { color: "#334155", highlight: "#22d3ee" }, width: 1.5 })),
+      ...note.referenceIds.filter(id => ids.has(id)).map(id => ({ from: note.id, to: id, dashes: [4, 5], color: { color: "#475569", highlight: "#a78bfa" }, width: 1.2 }))
+    ]);
+    if (state.network) state.network.destroy();
+    state.network = new vis.Network(graph, { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) }, {
+      autoResize: true, physics: { stabilization: { iterations: 120 }, barnesHut: { gravitationalConstant: -4000, springLength: 130, springConstant: 0.04 } },
+      interaction: { hover: true, navigationButtons: false, keyboard: true }, edges: { smooth: { type: "continuous" } }
     });
+    state.network.on("click", params => { if (params.nodes.length) openPanel(params.nodes[0]); });
+    empty.classList.toggle("hidden", nodes.length > 0); empty.classList.toggle("flex", nodes.length === 0);
+  }
 
-    function switchView(view) {
-      const g = document.getElementById("viewGraph");
-      const l = document.getElementById("viewList");
-      const bg = document.getElementById("btnViewGraph");
-      const bl = document.getElementById("btnViewList");
+  function drawList() {
+    const data = filteredData();
+    const indexById = Object.fromEntries(state.data.indexes.map(index => [index.id, index.title]));
+    list.innerHTML = data.notes.map(note => `<button data-id="${esc(note.id)}" class="note-card mb-2 w-full rounded-xl border border-slate-800 bg-slate-900 p-4 text-left transition hover:border-cyan-500/50 hover:bg-slate-800/80"><div class="flex items-start justify-between gap-3"><div><p class="text-sm font-semibold text-slate-100">${esc(note.title)}</p><p class="mt-1 line-clamp-2 text-xs leading-5 text-slate-400">${esc(note.summary)}</p></div><span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style="background:${typeColor(note.type)}22;color:${typeColor(note.type)}">${esc(note.type)}</span></div><div class="mt-3 flex flex-wrap gap-1.5">${note.indexIds.map(id => `<span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-cyan-300">${esc(indexById[id] || id)}</span>`).join("")}${note.tags.map(tag => `<span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">#${esc(tag)}</span>`).join("")}</div></button>`).join("");
+    list.querySelectorAll(".note-card").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
+    empty.classList.toggle("hidden", data.notes.length > 0); empty.classList.toggle("flex", data.notes.length === 0);
+  }
 
-      if (view === "graph") {
-        g.classList.remove("hidden");
-        l.classList.add("hidden");
-        bg.className = "px-2 py-0.5 rounded transition font-medium bg-indigo-600 text-white";
-        bl.className = "px-2 py-0.5 rounded transition font-medium text-slate-400 hover:text-slate-200";
-      } else {
-        g.classList.remove("hidden");
-        l.classList.remove("hidden");
-        bl.className = "px-2 py-0.5 rounded transition font-medium bg-indigo-600 text-white";
-        bg.className = "px-2 py-0.5 rounded transition font-medium text-slate-400 hover:text-slate-200";
-      }
+  function openPanel(id) {
+    const item = allItems().find(x => x.id === id); if (!item) return;
+    const indexes = Object.fromEntries(state.data.indexes.map(x => [x.id, x]));
+    const notes = Object.fromEntries(state.data.notes.map(x => [x.id, x]));
+    document.getElementById("panelType").textContent = item.kind === "Index" ? "Index" : item.type || "Note";
+    document.getElementById("panelTitle").textContent = item.title;
+    document.getElementById("panelSummary").textContent = item.summary || "説明はまだありません。";
+    document.getElementById("panelTags").innerHTML = (item.tags || []).map(tag => `<span class="rounded-full border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300">#${esc(tag)}</span>`).join("");
+    document.getElementById("panelIndexes").innerHTML = (item.kind === "Index" ? [item] : item.indexIds.map(id => indexes[id]).filter(Boolean)).map(index => `<button data-id="${esc(index.id)}" class="panel-index rounded-lg bg-cyan-500/10 px-2.5 py-1.5 text-xs text-cyan-300 hover:bg-cyan-500/20">${esc(index.title)}</button>`).join("") || '<span class="text-xs text-slate-500">関連なし</span>';
+    document.querySelectorAll(".panel-index").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
+    const refs = item.kind === "Index" ? state.data.notes.filter(n => n.indexIds.includes(item.id)) : item.referenceIds.map(id => notes[id]).filter(Boolean);
+    const refSection = document.getElementById("panelReferencesSection");
+    refSection.classList.toggle("hidden", !refs.length);
+    document.getElementById("panelReferences").innerHTML = refs.map(note => `<button data-id="${esc(note.id)}" class="panel-ref block w-full rounded-lg bg-slate-900 px-3 py-2 text-left text-xs text-slate-300 hover:bg-slate-800">${esc(note.title)}</button>`).join("");
+    document.querySelectorAll(".panel-ref").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
+    const link = document.getElementById("notionLink"); link.href = item.appUrl || "https://www.notion.so/";
+    panel.classList.add("panel-open"); shade.classList.remove("hidden");
+  }
+  function closePanel() { panel.classList.remove("panel-open"); shade.classList.add("hidden"); }
+  function render() { drawGraph(); drawList(); graph.classList.toggle("hidden", state.currentView !== "graph"); list.classList.toggle("hidden", state.currentView !== "list"); }
+  async function loadData() {
+    status.textContent = "更新中…"; status.className = "rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-300";
+    try {
+      if (!API_URL) throw new Error("mock");
+      const response = await fetch(API_URL); if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json(); if (!Array.isArray(data.indexes) || !Array.isArray(data.notes)) throw new Error("Invalid API data");
+      state.data = data; status.textContent = "Live"; status.className = "rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs text-emerald-300";
+    } catch (error) {
+      state.data = mockData; status.textContent = API_URL ? "Mock fallback" : "Mock data"; status.className = "rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-xs text-slate-400";
     }
-
-    async function fetchNotionData(forceRefresh = false) {
-      const errorBanner = document.getElementById("errorBanner");
-      errorBanner.classList.add("hidden");
-
-      if (!WORKER_URL || WORKER_URL.includes("YOUR-SUBDOMAIN")) {
-        document.getElementById("dataStatus").innerText = "URL未設定";
-        return;
-      }
-
-      try {
-        const url = forceRefresh ? `${WORKER_URL}?refresh=1` : WORKER_URL;
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        loadNotionData(data);
-        
-        const status = document.getElementById("dataStatus");
-        status.innerText = "Live";
-        status.className = "text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
-      } catch (err) {
-        console.error("API Fetch Error:", err);
-        errorBanner.innerText = `🚨 エラー: ${err.message}`;
-        errorBanner.classList.remove("hidden");
-        document.getElementById("dataStatus").innerText = "Error";
-        document.getElementById("dataStatus").className = "text-[9px] px-1.5 py-0.2 rounded bg-red-500/10 text-red-400 border border-red-500/20";
-      }
-    }
-
-    initNetwork();
-    fetchNotionData();
-  </script>
+    render();
+  }
+  document.getElementById("searchInput").addEventListener("input", event => { state.query = event.target.value; render(); });
+  document.querySelectorAll(".view-button").forEach(button => button.addEventListener("click", () => { state.currentView = button.dataset.view; document.querySelectorAll(".view-button").forEach(b => b.className = `view-button rounded-lg px-3 py-1.5 text-xs font-medium transition ${b === button ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`); render(); }));
+  document.getElementById("refreshButton").addEventListener("click", loadData);
+  document.getElementById("closePanel").addEventListener("click", closePanel); shade.addEventListener("click", closePanel);
+  loadData();
+</script>
 </body>
 </html>
