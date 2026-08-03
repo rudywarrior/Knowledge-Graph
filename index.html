@@ -11,11 +11,19 @@
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
     .network-canvas canvas { outline: none; }
-    .panel-open { transform: translateX(0); }
+    /* Tailwind の translate-x-full より優先して詳細パネルを表示する */
+    #detailPanel.panel-open { transform: translateX(0); }
+    .rasta-haze {
+      background:
+        radial-gradient(ellipse 65% 55% at 5% 0%, rgba(214, 40, 40, .15), transparent 70%),
+        radial-gradient(ellipse 50% 55% at 100% 10%, rgba(255, 209, 102, .10), transparent 70%),
+        radial-gradient(ellipse 70% 60% at 55% 100%, rgba(128, 185, 24, .11), transparent 72%);
+    }
+    .rasta-line { background: linear-gradient(90deg, #d62828, #f77f00 30%, #ffd166 50%, #80b918 72%, #2a9d8f); }
   </style>
 </head>
 <body class="h-full overflow-hidden bg-transparent font-sans text-slate-100">
-  <main class="mx-auto flex h-full max-w-7xl flex-col p-3 sm:p-5">
+  <main class="rasta-haze relative mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-2xl p-3 sm:p-5">
     <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
       <div>
         <p class="mb-0.5 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">Notion connected</p>
@@ -26,6 +34,7 @@
         <button id="refreshButton" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-cyan-500/50 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500/60">↻ 更新</button>
       </div>
     </header>
+    <div class="rasta-line mt-0.5 h-px w-full opacity-70"></div>
 
     <section class="mt-3 flex flex-col gap-2 sm:flex-row">
       <label class="relative flex-1">
@@ -38,7 +47,7 @@
       </div>
     </section>
 
-    <section class="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/30 shadow-2xl shadow-black/20 backdrop-blur-sm">
+    <section class="relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-950/35 shadow-2xl shadow-black/20 backdrop-blur-md">
       <div id="graphView" class="network-canvas absolute inset-0"></div>
       <div id="listView" class="absolute inset-0 hidden overflow-y-auto p-3 sm:p-5"></div>
       <div id="emptyState" class="pointer-events-none absolute inset-0 hidden items-center justify-center text-sm text-slate-500">一致するノートはありません</div>
