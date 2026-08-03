@@ -78,10 +78,6 @@
       <h2 id="panelTitle" class="text-xl font-bold leading-snug text-stone-800"></h2>
       <p id="panelSummary" class="mt-3 text-sm leading-7 text-stone-600"></p>
       <div id="panelTags" class="mt-4 flex flex-wrap gap-1.5"></div>
-      <div id="panelCabinetCategoriesSection" class="mt-5 hidden">
-        <p class="text-xs font-medium text-stone-500">CABINET Category</p>
-        <div id="panelCabinetCategories" class="mt-2 flex flex-wrap gap-1.5"></div>
-      </div>
       <div class="mt-7 border-t border-black/5 pt-5">
         <p class="text-xs font-medium text-stone-500">関連するIndex</p>
         <div id="panelIndexes" class="mt-2 flex flex-wrap gap-2"></div>
@@ -178,12 +174,6 @@
     document.getElementById("panelSummary").textContent = item.summary || "説明はまだありません。";
     const meta = item.kind === "Index" ? [item.category, item.genre].filter(Boolean) : item.tags || [];
     document.getElementById("panelTags").innerHTML = meta.map(tag => `<span class="meta-pill rounded-full px-2 py-1 text-xs">${item.kind === "Index" ? esc(tag) : "#" + esc(tag)}</span>`).join("");
-    const cabinetCategorySection = document.getElementById("panelCabinetCategoriesSection");
-    const cabinetCategories = item.kind === "Index"
-      ? [...new Set(state.data.notes.filter(note => note.indexIds.includes(item.id)).map(note => note.type).filter(Boolean))]
-      : [];
-    cabinetCategorySection.classList.toggle("hidden", !cabinetCategories.length);
-    document.getElementById("panelCabinetCategories").innerHTML = cabinetCategories.map(category => `<span class="rounded-full px-2 py-1 text-xs font-medium text-[#222]" style="background:${typeColor(category)}22">${esc(category)}</span>`).join("");
     const relatedIndexes = item.kind === "Index" ? [] : item.indexIds.map(id => indexes[id]).filter(Boolean);
     document.getElementById("panelIndexes").innerHTML = relatedIndexes.map(index => `<button data-id="${esc(index.id)}" class="panel-index rounded-lg bg-black/[.04] px-2.5 py-1.5 text-xs text-stone-700 hover:bg-black/[.08]">${esc(index.title)}</button>`).join("") || '<span class="text-xs text-stone-400">関連なし</span>';
     document.querySelectorAll(".panel-index").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
@@ -191,7 +181,7 @@
     const refSection = document.getElementById("panelReferencesSection");
     refSection.classList.remove("hidden");
     document.getElementById("panelReferencesTitle").textContent = item.kind === "Index" ? "収録ノート" : "Related Note";
-    document.getElementById("panelReferences").innerHTML = refs.map(note => `<button data-id="${esc(note.id)}" class="panel-ref block w-full rounded-lg bg-[#f8efd9] px-3 py-2 text-left text-xs text-stone-600 hover:bg-[#f1dfb7]">${esc(note.title)}</button>`).join("") || '<span class="text-xs text-stone-400">関連なし</span>';
+    document.getElementById("panelReferences").innerHTML = refs.map(note => `<button data-id="${esc(note.id)}" class="panel-ref flex w-full items-center justify-between gap-3 rounded-lg bg-[#f8efd9] px-3 py-2 text-left text-xs text-stone-600 hover:bg-[#f1dfb7]"><span>${esc(note.title)}</span><span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium text-[#222]" style="background:${typeColor(note.type)}22">${esc(note.type || "Note")}</span></button>`).join("") || '<span class="text-xs text-stone-400">関連なし</span>';
     document.querySelectorAll(".panel-ref").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
     const link = document.getElementById("notionLink"); link.href = item.appUrl || "https://www.notion.so/";
     panel.classList.add("panel-open"); shade.classList.remove("hidden");
