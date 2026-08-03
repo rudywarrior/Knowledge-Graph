@@ -14,36 +14,31 @@
     .network-canvas canvas { outline: none; }
     /* Tailwind の translate-x-full より優先して詳細パネルを表示する */
     #detailPanel.panel-open { transform: translateX(0); }
-    .rasta-haze {
-      background:
-        radial-gradient(ellipse 62% 55% at 2% 0%, rgba(169, 54, 43, .20), transparent 70%),
-        radial-gradient(ellipse 55% 60% at 100% 6%, rgba(226, 178, 44, .24), transparent 70%),
-        radial-gradient(ellipse 70% 65% at 50% 100%, rgba(91, 132, 43, .21), transparent 72%),
-        rgba(255, 252, 242, .68);
-    }
-    .knowledge-shell { box-shadow: 0 18px 50px rgba(64, 48, 22, .13); }
-    .rasta-line { height: 4px; background: linear-gradient(90deg, var(--red) 0 31%, var(--gold) 31% 64%, var(--green) 64%); }
-    .rasta-control { border-color: rgba(212, 154, 34, .46); background: rgba(255, 255, 255, .62); color: var(--ink); box-shadow: 0 2px 10px rgba(93, 70, 28, .05); }
-    .rasta-control:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(169, 54, 43, .13); }
-    .rasta-button { border-color: rgba(169, 54, 43, .34); background: linear-gradient(100deg, rgba(169,54,43,.08), rgba(212,154,34,.10), rgba(91,132,43,.08)); color: #583425; }
-    .rasta-button:hover { border-color: var(--red); background: linear-gradient(100deg, rgba(169,54,43,.16), rgba(212,154,34,.16), rgba(91,132,43,.14)); }
-    .graph-surface { background: radial-gradient(ellipse 40% 50% at 5% 100%, rgba(169,54,43,.11), transparent 72%), radial-gradient(ellipse 35% 45% at 95% 12%, rgba(91,132,43,.12), transparent 70%), linear-gradient(135deg, rgba(255,255,255,.70), rgba(255,248,220,.52)); box-shadow: inset 0 1px rgba(255,255,255,.86), 0 12px 30px rgba(93,70,28,.08); }
-    .paper-panel { background: rgba(255, 252, 242, .96); color: var(--ink); }
-    .meta-pill { border: 1px solid rgba(91,132,43,.28); background: rgba(91,132,43,.08); color: #496d21; }
-    .meta-pill:nth-child(2n) { border-color: rgba(212,154,34,.34); background: rgba(212,154,34,.10); color: #8a5d0d; }
-    .meta-pill:nth-child(3n) { border-color: rgba(169,54,43,.28); background: rgba(169,54,43,.08); color: #963329; }
-    .note-card { border-color: rgba(91,132,43,.20); background: rgba(255,255,255,.55); color: var(--ink); }
-    .note-card:hover { border-color: rgba(169,54,43,.48); background: rgba(255,250,230,.88); }
-    .rasta-segments { background: linear-gradient(90deg, rgba(169,54,43,.13) 0 33.33%, rgba(212,154,34,.14) 33.33% 66.66%, rgba(91,132,43,.13) 66.66%); }
+    .rasta-haze { background: rgba(255, 253, 248, .88); }
+    .knowledge-shell { box-shadow: 0 10px 35px rgba(0, 0, 0, .07); }
+    .knowledge-shell::after { content: ""; position: absolute; z-index: 10; right: 0; bottom: 0; left: 0; height: 6px; background: linear-gradient(90deg, #d62828, #f77f00, #ffd166, #80b918, #2a9d8f); background-size: 200% 100%; animation: rastaMove 8s ease infinite; opacity: .9; pointer-events: none; }
+    @keyframes rastaMove { 0%, 100% { background-position: 0% } 50% { background-position: 100% } }
+    .rasta-line { display: none; }
+    .rasta-control { border-color: rgba(0, 0, 0, .09); background: rgba(255, 255, 255, .70); color: #222; box-shadow: none; }
+    .rasta-control:focus { border-color: rgba(0, 0, 0, .25); box-shadow: 0 0 0 3px rgba(0, 0, 0, .04); }
+    .rasta-button { border-color: rgba(0, 0, 0, .10); background: rgba(255, 255, 255, .62); color: #333; }
+    .rasta-button:hover { border-color: rgba(0, 0, 0, .22); background: rgba(255, 255, 255, .95); }
+    .graph-surface { background: rgba(255, 255, 255, .38); box-shadow: inset 0 1px rgba(255,255,255,.82); }
+    .paper-panel { background: rgba(255, 253, 248, .98); color: #222; }
+    .meta-pill { border: 1px solid rgba(0,0,0,.08); background: rgba(0,0,0,.035); color: #444; }
+    .meta-pill:nth-child(2n), .meta-pill:nth-child(3n) { border-color: rgba(0,0,0,.08); background: rgba(0,0,0,.035); color: #444; }
+    .note-card { border-color: rgba(0,0,0,.07); background: rgba(255,255,255,.55); color: #222; }
+    .note-card:hover { border-color: rgba(0,0,0,.17); background: rgba(255,255,255,.92); }
+    .rasta-segments { background: rgba(255,255,255,.50); }
     ::selection { background: rgba(212,154,34,.35); color: #30271c; }
   </style>
 </head>
 <body class="h-full overflow-hidden bg-transparent font-sans text-stone-800">
-  <main class="knowledge-shell rasta-haze relative mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-white/70 p-3 sm:p-5">
-    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-stone-300/70 pb-3">
+  <main class="knowledge-shell rasta-haze relative mx-auto flex h-full max-w-7xl flex-col overflow-hidden rounded-3xl p-3 sm:p-5">
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-black/5 pb-3">
       <div>
-        <p class="mb-0.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#5b842b]">Notion connected</p>
-        <h1 class="text-xl font-bold tracking-tight text-stone-800">Knowledge Graph</h1>
+        <p class="mb-0.5 text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Notion connected</p>
+        <h1 class="text-xl font-bold tracking-tight text-[#222]">Knowledge Graph</h1>
       </div>
       <div class="flex items-center gap-2">
         <span id="status" class="rounded-full border border-stone-300 bg-white/60 px-2.5 py-1 text-xs text-stone-500">接続待機</span>
@@ -57,40 +52,40 @@
         <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone-400">⌕</span>
         <input id="searchInput" type="search" placeholder="ノート、Index、タグを検索…" class="rasta-control w-full rounded-xl border py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-stone-400" />
       </label>
-      <div class="rasta-segments flex rounded-xl border border-[#d7cba7] p-1">
-        <button data-view="graph" class="view-button rounded-lg bg-[#d49a22] px-3 py-1.5 text-xs font-medium text-white shadow-sm">グラフ</button>
+      <div class="rasta-segments flex rounded-xl border border-black/5 p-1">
+        <button data-view="graph" class="view-button rounded-lg bg-[#222] px-3 py-1.5 text-xs font-medium text-white shadow-sm">グラフ</button>
         <button data-view="list" class="view-button rounded-lg px-3 py-1.5 text-xs font-medium text-stone-500 transition hover:text-stone-800">リスト</button>
       </div>
     </section>
 
-    <section class="graph-surface relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#d7cba7]/80 backdrop-blur-md">
+    <section class="graph-surface relative mt-3 min-h-0 flex-1 overflow-hidden rounded-2xl border border-black/5 backdrop-blur-md">
       <div id="graphView" class="network-canvas absolute inset-0"></div>
       <div id="listView" class="absolute inset-0 hidden overflow-y-auto p-3 sm:p-5"></div>
       <div id="emptyState" class="pointer-events-none absolute inset-0 hidden items-center justify-center text-sm text-stone-500">一致するノートはありません</div>
-      <div class="pointer-events-none absolute bottom-3 left-3 rounded-lg border border-[#d7cba7] bg-[#fffdf5]/85 px-2 py-1 text-[10px] text-stone-500 backdrop-blur">ドラッグで移動・ホイールで拡大</div>
+      <div class="pointer-events-none absolute bottom-4 left-3 rounded-lg border border-black/5 bg-white/70 px-2 py-1 text-[10px] text-stone-500 backdrop-blur">ドラッグで移動・ホイールで拡大</div>
     </section>
   </main>
 
   <div id="panelShade" class="fixed inset-0 z-10 hidden bg-[#352817]/30 backdrop-blur-[1px]"></div>
-  <aside id="detailPanel" class="paper-panel fixed inset-y-0 right-0 z-20 flex w-full max-w-md translate-x-full flex-col border-l border-[#d7cba7] shadow-2xl transition-transform duration-300">
-    <div class="flex items-center justify-between border-b border-[#d7cba7] p-5">
-      <p id="panelType" class="text-xs font-semibold uppercase tracking-[0.16em] text-[#5b842b]">Note</p>
+  <aside id="detailPanel" class="paper-panel fixed inset-y-0 right-0 z-20 flex w-full max-w-md translate-x-full flex-col border-l border-black/5 shadow-2xl transition-transform duration-300">
+    <div class="flex items-center justify-between border-b border-black/5 p-5">
+      <p id="panelType" class="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">Note</p>
       <button id="closePanel" aria-label="パネルを閉じる" class="rounded-lg p-2 text-stone-500 hover:bg-[#f4e6bd] hover:text-stone-800">✕</button>
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto p-5">
       <h2 id="panelTitle" class="text-xl font-bold leading-snug text-stone-800"></h2>
       <p id="panelSummary" class="mt-3 text-sm leading-7 text-stone-600"></p>
       <div id="panelTags" class="mt-4 flex flex-wrap gap-1.5"></div>
-      <div class="mt-7 border-t border-[#d7cba7] pt-5">
+      <div class="mt-7 border-t border-black/5 pt-5">
         <p class="text-xs font-medium text-stone-500">関連するIndex</p>
         <div id="panelIndexes" class="mt-2 flex flex-wrap gap-2"></div>
       </div>
-      <div id="panelReferencesSection" class="mt-6 hidden border-t border-[#d7cba7] pt-5">
+      <div id="panelReferencesSection" class="mt-6 hidden border-t border-black/5 pt-5">
         <p class="text-xs font-medium text-stone-500">関連ノート</p>
         <div id="panelReferences" class="mt-2 space-y-2"></div>
       </div>
     </div>
-    <div class="border-t border-[#d7cba7] p-5">
+    <div class="border-t border-black/5 p-5">
       <a id="notionLink" target="_blank" rel="noopener noreferrer" class="block rounded-xl bg-gradient-to-r from-[#a9362b] via-[#d49a22] to-[#5b842b] px-4 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:brightness-110">↗ Notionで開く</a>
     </div>
   </aside>
@@ -159,7 +154,7 @@
   function drawList() {
     const data = filteredData();
     const indexById = Object.fromEntries(state.data.indexes.map(index => [index.id, index.title]));
-    list.innerHTML = data.notes.map(note => `<button data-id="${esc(note.id)}" class="note-card mb-2 w-full rounded-xl border p-4 text-left transition"><div class="flex items-start justify-between gap-3"><div><p class="text-sm font-semibold text-stone-800">${esc(note.title)}</p><p class="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">${esc(note.summary)}</p></div><span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style="background:${typeColor(note.type)}22;color:${typeColor(note.type)}">${esc(note.type)}</span></div><div class="mt-3 flex flex-wrap gap-1.5">${note.indexIds.map(id => `<span class="rounded bg-[#eaf1df] px-1.5 py-0.5 text-[10px] text-[#496d21]">${esc(indexById[id] || id)}</span>`).join("")}${note.tags.map(tag => `<span class="rounded bg-[#f8efd9] px-1.5 py-0.5 text-[10px] text-stone-500">#${esc(tag)}</span>`).join("")}</div></button>`).join("");
+    list.innerHTML = data.notes.map(note => `<button data-id="${esc(note.id)}" class="note-card mb-2 w-full rounded-xl border p-4 text-left transition"><div class="flex items-start justify-between gap-3"><div><p class="text-sm font-semibold text-stone-800">${esc(note.title)}</p><p class="mt-1 line-clamp-2 text-xs leading-5 text-stone-500">${esc(note.summary)}</p></div><span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style="background:${typeColor(note.type)}22;color:${typeColor(note.type)}">${esc(note.type)}</span></div><div class="mt-3 flex flex-wrap gap-1.5">${note.indexIds.map(id => `<span class="rounded bg-black/[.04] px-1.5 py-0.5 text-[10px] text-stone-700">${esc(indexById[id] || id)}</span>`).join("")}${note.tags.map(tag => `<span class="rounded bg-[#f8efd9] px-1.5 py-0.5 text-[10px] text-stone-500">#${esc(tag)}</span>`).join("")}</div></button>`).join("");
     list.querySelectorAll(".note-card").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
     empty.classList.toggle("hidden", data.notes.length > 0); empty.classList.toggle("flex", data.notes.length === 0);
   }
@@ -173,7 +168,7 @@
     document.getElementById("panelSummary").textContent = item.summary || "説明はまだありません。";
     const meta = item.kind === "Index" ? [item.category, item.genre].filter(Boolean) : item.tags || [];
     document.getElementById("panelTags").innerHTML = meta.map(tag => `<span class="meta-pill rounded-full px-2 py-1 text-xs">${item.kind === "Index" ? esc(tag) : "#" + esc(tag)}</span>`).join("");
-    document.getElementById("panelIndexes").innerHTML = (item.kind === "Index" ? [item] : item.indexIds.map(id => indexes[id]).filter(Boolean)).map(index => `<button data-id="${esc(index.id)}" class="panel-index rounded-lg bg-[#eaf1df] px-2.5 py-1.5 text-xs text-[#496d21] hover:bg-[#dceacb]">${esc(index.title)}</button>`).join("") || '<span class="text-xs text-stone-400">関連なし</span>';
+    document.getElementById("panelIndexes").innerHTML = (item.kind === "Index" ? [item] : item.indexIds.map(id => indexes[id]).filter(Boolean)).map(index => `<button data-id="${esc(index.id)}" class="panel-index rounded-lg bg-black/[.04] px-2.5 py-1.5 text-xs text-stone-700 hover:bg-black/[.08]">${esc(index.title)}</button>`).join("") || '<span class="text-xs text-stone-400">関連なし</span>';
     document.querySelectorAll(".panel-index").forEach(button => button.addEventListener("click", () => openPanel(button.dataset.id)));
     const refs = item.kind === "Index" ? state.data.notes.filter(n => n.indexIds.includes(item.id)) : item.referenceIds.map(id => notes[id]).filter(Boolean);
     const refSection = document.getElementById("panelReferencesSection");
@@ -207,7 +202,7 @@
     render();
   }
   document.getElementById("searchInput").addEventListener("input", event => { state.query = event.target.value; render(); });
-  document.querySelectorAll(".view-button").forEach(button => button.addEventListener("click", () => { state.currentView = button.dataset.view; document.querySelectorAll(".view-button").forEach(b => b.className = `view-button rounded-lg px-3 py-1.5 text-xs font-medium transition ${b === button ? "bg-[#d49a22] text-white shadow-sm" : "text-stone-500 hover:text-stone-800"}`); render(); }));
+  document.querySelectorAll(".view-button").forEach(button => button.addEventListener("click", () => { state.currentView = button.dataset.view; document.querySelectorAll(".view-button").forEach(b => b.className = `view-button rounded-lg px-3 py-1.5 text-xs font-medium transition ${b === button ? "bg-[#222] text-white shadow-sm" : "text-stone-500 hover:text-stone-800"}`); render(); }));
   document.getElementById("refreshButton").addEventListener("click", loadData);
   document.getElementById("closePanel").addEventListener("click", closePanel); shade.addEventListener("click", closePanel);
   loadData();
